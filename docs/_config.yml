@@ -1,0 +1,15 @@
+remote_theme: ddc-java/ddc=day
+
+title: Codebreaker
+description: A code-breaking solitaire puzzle game.
+
+author:
+  name: Sergio Valdez
+  copyright: false
+  email: sergiovaldez159@yahoo.com
+
+  page_navigator:
+    enabled: True
+
+    titles_from_headings:
+      enabled: false
