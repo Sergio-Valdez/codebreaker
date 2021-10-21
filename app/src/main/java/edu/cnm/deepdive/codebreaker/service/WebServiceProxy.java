@@ -11,6 +11,7 @@ import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.logging.HttpLoggingInterceptor.Level;
 import retrofit2.Call;
 import retrofit2.Retrofit;
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.http.Body;
 import retrofit2.http.POST;
@@ -22,7 +23,7 @@ public interface WebServiceProxy {
   Single<Game> startGame(@Body Game game);
 
   @POST("codes/{gameId}/guesses")
-  Single<Guess> submitGuess(@Body Guess guess, @Path("gameId") String gameID);
+  Single<Guess> submitGuess(@Body Guess guess, @Path("gameId") String gameId);
 
   static WebServiceProxy getInstance() {
     return InstanceHolder.INSTANCE;
@@ -45,9 +46,12 @@ public interface WebServiceProxy {
       Retrofit retrofit = new Retrofit.Builder()
           .baseUrl(BuildConfig.BASE_URL)
           .addConverterFactory(GsonConverterFactory.create(gson))
+          .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
           .client(client)
           .build();
       INSTANCE = retrofit.create(WebServiceProxy.class);
     }
+
   }
+
 }
