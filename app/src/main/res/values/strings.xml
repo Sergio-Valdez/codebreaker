@@ -12,5 +12,6 @@
   <string name="menu_gallery">Gallery</string>
   <string name="menu_slideshow">Slideshow</string>
   <string name="submit">Submit</string>
-  <string name="guess_hint"/>
+  <string name="guess_hint">Text of Guess</string>
+  <string name="new_game">New Game</string>
 </resources>
