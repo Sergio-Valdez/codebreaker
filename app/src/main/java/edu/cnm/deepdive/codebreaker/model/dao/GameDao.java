@@ -44,4 +44,7 @@ public interface GameDao {
   @Query("SELECT * FROM game ORDER BY created DESC")
   LiveData<List<Game>> selectAll();
 
+  @Query("SELECT * FROM game WHERE game_id = :gameId")
+  LiveData<Game> select(long gameId);
+
 }

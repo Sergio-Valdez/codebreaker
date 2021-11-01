@@ -27,19 +27,19 @@ public interface GuessDao {
   Single<Integer> update(Guess guess);
 
   @Update
-  Single<Integer> update(Guess... guesss);
+  Single<Integer> update(Guess... guesses);
 
   @Update
-  Single<Integer> update(Collection<Guess> guesss);
+  Single<Integer> update(Collection<Guess> guesses);
 
   @Delete
   Single<Integer> delete(Guess guess);
 
   @Delete
-  Single<Integer> delete(Guess... guesss);
+  Single<Integer> delete(Guess... guesses);
 
   @Delete
-  Single<Integer> delete(Collection<Guess> guesss);
+  Single<Integer> delete(Collection<Guess> guesses);
 
   @Query("SELECT * FROM guess ORDER BY created DESC")
   LiveData<List<Guess>> selectAll();
