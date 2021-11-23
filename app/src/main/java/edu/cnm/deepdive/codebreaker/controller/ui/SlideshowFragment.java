@@ -1,4 +1,4 @@
-package edu.cnm.deepdive.codebreaker.controller.ui.slideshow;
+package edu.cnm.deepdive.codebreaker.controller.ui;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
