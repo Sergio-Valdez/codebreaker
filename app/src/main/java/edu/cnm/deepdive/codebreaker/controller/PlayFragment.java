@@ -1,16 +1,18 @@
 package edu.cnm.deepdive.codebreaker.controller;
 
 import android.os.Bundle;
-import android.text.InputFilter;
-import android.text.Spanned;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import com.google.android.material.snackbar.Snackbar;
@@ -18,17 +20,16 @@ import edu.cnm.deepdive.codebreaker.R;
 import edu.cnm.deepdive.codebreaker.adapter.GuessItemAdapter;
 import edu.cnm.deepdive.codebreaker.databinding.FragmentPlayBinding;
 import edu.cnm.deepdive.codebreaker.model.entity.Game;
+import edu.cnm.deepdive.codebreaker.model.entity.Guess;
 import edu.cnm.deepdive.codebreaker.viewmodel.PlayViewModel;
+import java.util.List;
 
-public class PlayFragment extends Fragment implements InputFilter {
-
-  private static final String ILLEGAL_CHARACTERS_FORMAT = "[^%s]+";
+public class PlayFragment extends Fragment {
 
   private PlayViewModel viewModel;
   private FragmentPlayBinding binding;
   private int codeLength;
-  private String pool;
-  private String illegalCharacters;
+  private Spinner[] spinners;
 
   @Override
   public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -39,9 +40,9 @@ public class PlayFragment extends Fragment implements InputFilter {
   public View onCreateView(
       @NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
     binding = FragmentPlayBinding.inflate(inflater, container, false);
-    binding.submit.setOnClickListener((v) ->
-        viewModel.submitGuess(binding.guess.getText().toString().trim()));
-    binding.guess.setFilters(new InputFilter[]{this});
+    binding.submit.setOnClickListener((v) -> submitGuess());
+    spinners = setupSpinners(
+        binding.guessContainer, getResources().getInteger(R.integer.code_length_pref_max));
     return binding.getRoot();
   }
 
@@ -66,7 +67,6 @@ public class PlayFragment extends Fragment implements InputFilter {
     boolean handled;
     if (item.getItemId() == R.id.new_game) {
       handled = true;
-      binding.guess.getText().clear();
       viewModel.startGame();
     } else {
       handled = super.onOptionsItemSelected(item);
@@ -80,37 +80,62 @@ public class PlayFragment extends Fragment implements InputFilter {
     binding = null;
   }
 
-  @Override
-  public CharSequence filter(
-      CharSequence source, int start, int end, Spanned dest, int dstart, int dend) {
-    String modifiedSource = source
-        .subSequence(start, end)
-        .toString()
-        .toUpperCase()
-        .replaceAll(illegalCharacters, "");
-    StringBuilder builder = new StringBuilder(dest);
-    builder.replace(dstart, dend, modifiedSource);
-    if (builder.length() > codeLength) {
-      modifiedSource =
-          modifiedSource.substring(0, modifiedSource.length() - (builder.length() - codeLength));
+  private void submitGuess() {
+    StringBuilder builder = new StringBuilder();
+    for (int i = 0; i < codeLength; i++) {
+      String emoji = (String) spinners[i].getSelectedItem();
+      builder.append(emoji);
     }
-    int newLength = dest.length() - (dend - dstart) + modifiedSource.length();
-    checkSubmitConditions(newLength);
-    return modifiedSource;
+    viewModel.submitGuess(builder.toString());
   }
 
   private void update(Game game) {
-    GuessItemAdapter adapter = new GuessItemAdapter(getContext(), game.getGuesses());
-    binding.guesses.setAdapter(adapter);
-    binding.guessContainer.setVisibility(game.isSolved() ? View.GONE : View.VISIBLE);
     codeLength = game.getLength();
-    pool = game.getPool();
-    illegalCharacters = String.format(ILLEGAL_CHARACTERS_FORMAT, pool);
-    checkSubmitConditions(binding.guess.getText().toString().trim().length());
+    String pool = game.getPool();
+    List<Guess> guesses = game.getGuesses();
+    Guess lastGuess = guesses.isEmpty() ? null : guesses.get(guesses.size() - 1);
+    String[] emojis = getUnicodeArray(pool);
+    updateSpinners(lastGuess, emojis);
+    updateControls(game);
+    updateGuesses(guesses);
   }
 
-  private void checkSubmitConditions(int length) {
-    binding.submit.setEnabled(length == codeLength);
+  private void updateGuesses(List<Guess> guesses) {
+    GuessItemAdapter adapter = new GuessItemAdapter(getContext(), guesses);
+    binding.guesses.setAdapter(adapter);
+    binding.guesses.scrollToPosition(adapter.getItemCount() - 1);
+  }
+
+  private void updateControls(Game game) {
+    if (game.isSolved()) {
+      binding.guessContainer.setVisibility(View.GONE);
+      binding.submit.setVisibility(View.GONE);
+    } else {
+      binding.guessContainer.setVisibility(View.VISIBLE);
+      binding.submit.setVisibility(View.VISIBLE);
+    }
+  }
+
+  private void updateSpinners(Guess lastGuess, String[] emojis) {
+    for (int i = codeLength; i < spinners.length; i++) {
+      spinners[i].setVisibility(View.GONE);
+    }
+    for (int spinnerIndex = 0; spinnerIndex < codeLength; spinnerIndex++) {
+      spinners[spinnerIndex].setVisibility(View.VISIBLE);
+      ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), R.layout.item_emoji, emojis);
+      adapter.setDropDownViewResource(R.layout.item_emoji_pulldown);
+      spinners[spinnerIndex].setAdapter(adapter);
+      if (lastGuess != null) {
+        String[] guessEmojis = getUnicodeArray(lastGuess.getText());
+        String selection = guessEmojis[spinnerIndex];
+        for (int emojiIndex = 0; emojiIndex < emojis.length; emojiIndex++) {
+          if (emojis[emojiIndex].equals(selection)) {
+            spinners[spinnerIndex].setSelection(emojiIndex);
+            break;
+          }
+        }
+      }
+    }
   }
 
   private void displayError(Throwable throwable) {
@@ -122,5 +147,45 @@ public class PlayFragment extends Fragment implements InputFilter {
       snackbar.show();
     }
   }
+
+  private Spinner[] setupSpinners(ConstraintLayout layout, int numSpinners) {
+    Spinner[] spinners = new Spinner[numSpinners];
+    LayoutInflater layoutInflater = getLayoutInflater();
+    for (int i = 0; i < spinners.length; i++) {
+      Spinner spinner = (Spinner) layoutInflater.inflate(R.layout.spinner_emoji, layout, false);
+      layout.addView(spinner);
+      spinner.setId(View.generateViewId());
+      spinners[i] = spinner;
+    }
+    int layoutId = layout.getId();
+    ConstraintSet constraints = new ConstraintSet();
+    constraints.clone(layout);
+    for (int i = 0; i < spinners.length; i++) {
+      Spinner spinner = spinners[i];
+      int spinnerId = spinner.getId();
+      constraints.connect(
+          spinnerId, ConstraintSet.START,
+          (i > 0) ? spinners[i - 1].getId() : layoutId,
+          (i > 0) ? ConstraintSet.END : ConstraintSet.START
+      );
+      constraints.connect(
+          spinnerId, ConstraintSet.END,
+          (i < spinners.length - 1) ? spinners[i + 1].getId() : layoutId,
+          (i < spinners.length - 1) ? ConstraintSet.START : ConstraintSet.END
+      );
+      constraints.connect(spinnerId, ConstraintSet.TOP, layoutId, ConstraintSet.TOP);
+      constraints.connect(spinnerId, ConstraintSet.BOTTOM, layoutId, ConstraintSet.BOTTOM);
+    }
+    constraints.applyTo(layout);
+    return spinners;
+  }
+
+  private String[] getUnicodeArray(String source) {
+    return source
+        .codePoints()
+        .mapToObj((codePoint) -> new String(new int[]{codePoint}, 0, 1))
+        .toArray(String[]::new);
+  }
+
 
 }
